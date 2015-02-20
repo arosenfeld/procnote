@@ -14,14 +14,32 @@ import (
 
 type ProcNotes map[int]string
 
-func addNote(notes ProcNotes, pid int, note string) {
-    notes[pid] = note
+func dirExists(path string) (bool, error) {
+    _, err := os.Stat(path)
+    if err == nil { return true, nil }
+    if os.IsNotExist(err) { return false, nil }
+    return false, err
 }
 
 func printNotes(notes ProcNotes) {
+    if len(notes) == 0 {
+        fmt.Println("No notes.")
+        return
+    }
+
     fmt.Printf("PID\tNOTE\n")
     for pid, note := range notes {
-        fmt.Printf("%d\t%s\n", pid, note)
+        exists, err := dirExists(filepath.Join("/proc", strconv.Itoa(pid)))
+        status := "Unknown"
+        if err == nil {
+            if exists {
+                status = "Running"
+            } else {
+                status = "Stopped"
+            }
+        }
+
+        fmt.Printf("%d\t%s\t%s\n", pid, status, note)
     }
 }
 
@@ -81,12 +99,17 @@ func readNoteFile(file *os.File) (ProcNotes, error) {
 func main() {
     var (
         addAction = kingpin.Command("add", "Adds a note to a process.")
-        pid = addAction.Arg("pid", "Process ID.").Required().Int()
+        addPid = addAction.Arg("pid", "Process ID.").Required().Int()
         note = addAction.Arg("note", "Note for process.").Required().String()
+        delAction = kingpin.Command("del", "Deletes a note to a process.")
+        delPid = delAction.Arg("pid", "Process ID.").Required().Int()
 
         _ = kingpin.Command("list", "Lists all process notes.")
-        searchAction = kingpin.Command("search", "Searches for a process matching the query.")
-        query = searchAction.Arg("query", "The query to run.").Required().String()
+        _ = kingpin.Command("clear", "Clears all process notes.")
+        searchAction = kingpin.Command("search", "Searches for a process " +
+                                       "matching the query.")
+        query = searchAction.Arg("query",
+                                 "The query to run.").Required().String()
     )
 
     usr, err := user.Current()
@@ -111,7 +134,11 @@ func main() {
 
     switch kingpin.Parse() {
         case "add":
-            addNote(notes, *pid, *note)
+            notes[*addPid] = *note
+            saveNoteFile(notes, noteFile)
+            break
+        case "del":
+            delete(notes, *delPid)
             saveNoteFile(notes, noteFile)
             break
         case "list":
@@ -119,6 +146,10 @@ func main() {
             break
         case "search":
             printNotes(searchNotes(notes, *query))
+            break
+        case "clear":
+            notes := make(ProcNotes)
+            saveNoteFile(notes, noteFile)
             break
     }
 }
