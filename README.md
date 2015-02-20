@@ -1,6 +1,11 @@
 # procnote
 
-procnote is a simple program that associates notes with processes.  For example:
+procnote is a simple program that associates notes with processes.  To build:
+
+    go get gopkg.in/alecthomas/kingpin.v1
+    go build procnote.go
+
+Adding a process with a note:
 
     $ procnote add 1234 "This is an important process!"
     
