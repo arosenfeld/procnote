@@ -18,6 +18,10 @@ Searching notes is also easy:
     PID     STATUS    NOTE
     45678   Running   Don't stop this important process!
     
+To delete a single note use:
+
+    $ procnote del 123
+    
 You can clear all your notes with:
 
     $ procnote clear
