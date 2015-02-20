@@ -14,8 +14,8 @@ import (
 
 type ProcNotes map[int]string
 
-func dirExists(path string) (bool, error) {
-    _, err := os.Stat(path)
+func procIsRunning(pid int) (bool, error) {
+    _, err := os.Stat(filepath.Join("/proc", strconv.Itoa(pid)))
     if err == nil { return true, nil }
     if os.IsNotExist(err) { return false, nil }
     return false, err
@@ -29,7 +29,7 @@ func printNotes(notes ProcNotes) {
 
     fmt.Printf("PID\tNOTE\n")
     for pid, note := range notes {
-        exists, err := dirExists(filepath.Join("/proc", strconv.Itoa(pid)))
+        exists, err := procIsRunning(pid)
         status := "Unknown"
         if err == nil {
             if exists {
@@ -105,7 +105,9 @@ func main() {
         delPid = delAction.Arg("pid", "Process ID.").Required().Int()
 
         _ = kingpin.Command("list", "Lists all process notes.")
-        _ = kingpin.Command("clear", "Clears all process notes.")
+        clearAction = kingpin.Command("clear", "Clears all process notes.")
+        clearOnlyStopped = clearAction.Flag(
+            "stopped", "Only clear stopped processes.").Bool()
         searchAction = kingpin.Command("search", "Searches for a process " +
                                        "matching the query.")
         query = searchAction.Arg("query",
@@ -134,7 +136,7 @@ func main() {
 
     switch kingpin.Parse() {
         case "add":
-            notes[*addPid] = *note
+            notes[*addPid] = strings.Replace(*note, "\n", " ", -1)
             saveNoteFile(notes, noteFile)
             break
         case "del":
@@ -148,7 +150,16 @@ func main() {
             printNotes(searchNotes(notes, *query))
             break
         case "clear":
-            notes := make(ProcNotes)
+            if *clearOnlyStopped {
+                for pid, _ := range notes {
+                    running, err := procIsRunning(pid)
+                    if err == nil && !running {
+                        delete(notes, pid)
+                    }
+                }
+            } else {
+                notes = make(ProcNotes)
+            }
             saveNoteFile(notes, noteFile)
             break
     }
