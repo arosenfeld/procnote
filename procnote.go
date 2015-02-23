@@ -27,7 +27,7 @@ func printNotes(notes ProcNotes) {
         return
     }
 
-    fmt.Printf("PID\tNOTE\n")
+    fmt.Printf("PID\tSTATUS\tNOTE\n")
     for pid, note := range notes {
         exists, err := procIsRunning(pid)
         status := "Unknown"
